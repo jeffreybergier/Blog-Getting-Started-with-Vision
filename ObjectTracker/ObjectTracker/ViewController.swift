@@ -58,16 +58,23 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         super.viewDidLayoutSubviews()
         
         // make sure the layer is the correct size
-        self.cameraLayer.frame = self.view.bounds
+        self.cameraLayer.frame = self.cameraView?.bounds ?? .zero
     }
     
     private var lastObservation: VNDetectedObjectObservation?
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer), let previousObservation = self.lastObservation else { return }
-        let request = VNTrackObjectRequest(detectedObjectObservation: previousObservation) { request, error in
-            DispatchQueue.main.async(execute: { self.handleVisionRequestUpdate(request, error: error) })
-        }
+        // make sure the pixel buffer can be converted
+        // make sure that there is a previous observation we can feed into the request
+        guard let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer), let lastObservation = self.lastObservation else { return }
+        
+        // create the request
+        let request = VNTrackObjectRequest(detectedObjectObservation: lastObservation, completionHandler: self.handleVisionRequestUpdate)
+        // set the accuracy to high
+        // this is slower, but it works a lot better
+        request.trackingLevel = .accurate
+        
+        // perform the request
         do {
             try self.visionSequenceHandler.perform([request], on: pixelBuffer)
         } catch {
@@ -76,22 +83,29 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     }
     
     private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
-        // make sure we have an actual result
-        guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { print(error!); return }
-        
-        // prepare for next loop
-        self.lastObservation = newObservation
-        
-        // check the confidence level before updating the UI
-        guard newObservation.confidence >= 0.9 else { return }
-        
-        // calculate view rect
-        var transformedRect = newObservation.boundingBox
-        transformedRect.origin.y = 1 - transformedRect.origin.y
-        let convertedRect = self.cameraLayer.layerRectConverted(fromMetadataOutputRect: transformedRect)
-        
-        // move the highlight view
-        self.highlightView?.frame = convertedRect
+        // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
+        DispatchQueue.main.async {
+            // make sure we have an actual result
+            guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { print(error!); return }
+            
+            // prepare for next loop
+            self.lastObservation = newObservation
+            
+            // check the confidence level before updating the UI
+            guard newObservation.confidence >= 0.3 else {
+                // hide the rectangle when we lose accuracy so the user knows something is wrong
+                self.highlightView?.frame = .zero
+                return
+            }
+            
+            // calculate view rect
+            var transformedRect = newObservation.boundingBox
+            transformedRect.origin.y = 1 - transformedRect.origin.y
+            let convertedRect = self.cameraLayer.layerRectConverted(fromMetadataOutputRect: transformedRect)
+            
+            // move the highlight view
+            self.highlightView?.frame = convertedRect
+        }
     }
     
     @IBAction private func userTapped(_ sender: UITapGestureRecognizer) {

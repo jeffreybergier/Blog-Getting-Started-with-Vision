@@ -1,5 +1,7 @@
 # Blog: Getting Started with Vision
 
+![Tracking Screenshot](demo_screenshot.png) [![Tracking Video](demo_video.gif)](demo_video.mp4)
+
 ## What is Vision?
 Vision is a new framework from Apple for iOS 11 and other Apple platforms. Vision is a part of the [Core ML](https://developer.apple.com/machine-learning/) framework. CoreML is the new framework that makes it really easy to take a machine learning model and run your data through it to get predictions. The Vision framework helps you feed machine learning models that expect images. Using the Vision framework, its really easy to process a live feed from the camera and extract information from each frame using both built in and external machine learning models.
 
@@ -178,7 +180,7 @@ Note that the size I picked is arbitrary. Also note that the Vision system is se
 Unfortunately, we can't pass this CGRect directly into the Vision system. There are 3 different coordinate systems we have to convert between. 
    1. UIKit coordinate space
       - Origin in the top left corner
-      - Max height and width values of the screen size in points (320 x 560 on a 4in iPhone)
+      - Max height and width values of the screen size in points (320 x 568 on iPhone SE)
    1. AVFoundation coordinate space
       - Origin in the top left
       - Max height and width of 1

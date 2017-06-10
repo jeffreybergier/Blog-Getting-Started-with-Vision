@@ -64,9 +64,12 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     private var lastObservation: VNDetectedObjectObservation?
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        // make sure the pixel buffer can be converted
-        // make sure that there is a previous observation we can feed into the request
-        guard let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer), let lastObservation = self.lastObservation else { return }
+        guard
+            // make sure the pixel buffer can be converted
+            let pixelBuffer: CVPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
+            // make sure that there is a previous observation we can feed into the request
+            let lastObservation = self.lastObservation
+        else { return }
         
         // create the request
         let request = VNTrackObjectRequest(detectedObjectObservation: lastObservation, completionHandler: self.handleVisionRequestUpdate)
@@ -86,7 +89,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
         DispatchQueue.main.async {
             // make sure we have an actual result
-            guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { print(error!); return }
+            guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { return }
             
             // prepare for next loop
             self.lastObservation = newObservation

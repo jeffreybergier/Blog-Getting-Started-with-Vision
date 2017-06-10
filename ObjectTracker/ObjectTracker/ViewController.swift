@@ -26,13 +26,11 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     private lazy var captureSession: AVCaptureSession = {
         let session = AVCaptureSession()
         session.sessionPreset = AVCaptureSession.Preset.photo
-        do {
-            guard let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) else { return session }
-            let input = try AVCaptureDeviceInput(device: backCamera)
-            session.addInput(input)
-        } catch {
-            print("Error Loading Camera: \(error)")
-        }
+        guard
+            let backCamera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
+            let input = try? AVCaptureDeviceInput(device: backCamera)
+        else { return session }
+        session.addInput(input)
         return session
     }()
     

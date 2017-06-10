@@ -1,13 +1,14 @@
 # Blog: Getting Started with Vision
 
 ## What is Vision?
-Vision is a new framework from Apple for iOS 11 and other Apple platforms. Vision is a part of the [Core ML](https://developer.apple.com/machine-learning/) framework and they work hand in hand. CoreML is the new framework that makes it really easy to take a machine learning model and run data through it to get results. The Vision framework helps you feed machine learning models that expect images, a video stream. Using the Vision framework, its really easy to process a live feed from the camera and extract information from each frame using both built in and external machine learning modesl.
+Vision is a new framework from Apple for iOS 11 and other Apple platforms. Vision is a part of the [Core ML](https://developer.apple.com/machine-learning/) framework. CoreML is the new framework that makes it really easy to take a machine learning model and run your data through it to get predictions. The Vision framework helps you feed machine learning models that expect images. Using the Vision framework, its really easy to process a live feed from the camera and extract information from each frame using both built in and external machine learning models.
 
 ## Built-in Features
 Vision has a number of built in features. Some of the things vision can do on still images, others on video, most on both.
+
     - Face Detection
         - Individual feature detection, such as nose, mouth, left eye, etc
-    - Horizon detectionas
+    - Horizon detection
     - Rectangle detection
     - Character detection
     - Object tracking
@@ -15,20 +16,25 @@ Vision has a number of built in features. Some of the things vision can do on st
     
 ## Getting Started with Object Tracking
 
-We're going to built a simple project where the user taps on an object on the screen and then the Vision system is going to track that object. As the user moves the phone, we would expet the object to be tracked in the video frame. Also, if the object moves on its own, it should be tracked by the vision framework. Note that the code below does not represent best practices in terms of reducing the complexity of your view controllers. Its just an easy place to get started. Ideally, you would abstract most of this code into a custom object that the view controller uses.
+We're going to build a simple project where the user taps on an object on the screen and then the Vision system is going to track that object. As the user moves the phone, we would expet the object to be tracked in the video frame. Also, if the object moves on its own, it should be tracked by the Vision framework. 
+
+Note that the code below does not represent best practices in terms of reducing the complexity of your view controllers. Its just an easy place to get started. Ideally, you would abstract most of this code into a custom object that the view controller uses.
 
 ### Project Overview
-    - Start AVCaptureSession
-    - Configure AVCaptureSession
-    - Configure the Vision System.
-    - Seed the vision system with an 'Observation' when the user taps the screen.
-    - Update the rectangle on the screen as the vision system returns new 'Observations.'
+    1. Start AVCaptureSession
+    1. Configure AVCaptureSession
+    1. Configure the vision system.
+    1. Seed the vision system with an 'Observation' when the user taps the screen.
+    1. Update the rectangle on the screen as the vision system returns new 'Observations.'
     
 ### Start the AVCaptureSession
 
-This is not new code so I'm not going to go into detail. We're going to add some lazy properties to our view controller. They just give us access to the `AVCaptureSession` as well as the `AVCaptureVideoPreviewLayer` so the user can see the video feed on the screen. The IBOutlet here is just a view that is the same width and height of the view controller's view. I did this so it was easy to put the red highlight view on top of the video output.
+This is not new code so I'm not going to go into detail. We're going to add some lazy properties to our view controller. They just give us access to the `AVCaptureSession` as well as the `AVCaptureVideoPreviewLayer` so the user can see the video feed on the screen. The IBOutlet here is just a view that is the same width and height of the view controller's view. I did this so it was easy to put the Highlight view on top of the video output.
+
+At this point, you should be able to launch the app and see camera output on the screen.
 
 ``` swift
+class ViewController: UIViewController {
     @IBOutlet private weak var cameraView: UIView?
 
     private lazy var cameraLayer: AVCaptureVideoPreviewLayer = AVCaptureVideoPreviewLayer(session: self.captureSession)
@@ -61,13 +67,12 @@ This is not new code so I'm not going to go into detail. We're going to add some
         // make sure the layer is the correct size
         self.cameraLayer.frame = self.cameraView?.bounds ?? .zero
     }
+}
 ```
-
-At this point, you should be able to launch the app and see camera output on the screen.
 
 ### Configure AVCaptureSession
 
-In order to get video buffers from the AVCaptureSession into the `VNSequenceRequestHandler` we need to tell the `AVCaptureSession` that we want to be a delegate of its video feed. In `viewDidLoad:` add the following code.
+In order to get video buffers from the AVCaptureSession into the vision system we need to tell the `AVCaptureSession` that we want to be a delegate of its video feed. In `viewDidLoad:` add the following code.
 
 ``` swift
     override func viewDidLoad() {
@@ -83,7 +88,9 @@ In order to get video buffers from the AVCaptureSession into the `VNSequenceRequ
     }
 ```
 
-In order to receive the frames, we need to conform to the  `AVCaptureVideoDataOutputSampleBufferDelegate` and implement the appropriate method. Add a print statement into the method below and run the app. You should see that print statement be printed many times, repeatedly. The AVCaptureSession returns data often.
+In order to receive the frames, we need to conform to the  `AVCaptureVideoDataOutputSampleBufferDelegate` and implement the appropriate method. 
+
+Add a print statement into the method below and run the app. You should see that print statement be printed many times, repeatedly. The AVCaptureSession returns data often.
 
 ``` swift
 class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {

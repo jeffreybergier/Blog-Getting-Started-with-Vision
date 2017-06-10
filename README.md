@@ -1,7 +1,7 @@
 # Blog: Getting Started with Vision
 
 ## What is Vision?
-Vision is a new framework from Apple for iOS 11 and other Apple platforms. Vision is a part of the [Core ML](https://developer.apple.com/machine-learning/) framework and they work hand in hand.
+Vision is a new framework from Apple for iOS 11 and other Apple platforms. Vision is a part of the [Core ML](https://developer.apple.com/machine-learning/) framework and they work hand in hand. CoreML is the new framework that makes it really easy to take a machine learning model and run data through it to get results. The Vision framework helps you feed machine learning models that expect images, a video stream. Using the Vision framework, its really easy to process a live feed from the camera and extract information from each frame using both built in and external machine learning modesl.
 
 ## Built-in Features
 Vision has a number of built in features. Some of the things vision can do on still images, others on video, most on both.
@@ -11,8 +11,11 @@ Vision has a number of built in features. Some of the things vision can do on st
     - Rectangle detection
     - Character detection
     - Object tracking
+    - Feed images/video to external machine learning models.
     
 ## Getting Started with Object Tracking
+
+We're going to built a simple project where the user taps on an object on the screen and then the Vision system is going to track that object. As the user moves the phone, we would expet the object to be tracked in the video frame. Also, if the object moves on its own, it should be tracked by the vision framework. Note that the code below does not represent best practices in terms of reducing the complexity of your view controllers. Its just an easy place to get started. Ideally, you would abstract most of this code into a custom object that the view controller uses.
 
 ### Project Overview
     - Start AVCaptureSession
@@ -139,7 +142,9 @@ When the user taps the screen, we want to find out where the user tapped, then p
     }
 ```
 
-In order to the receive the tap, we're going to use a  `UITapGestureRecognizer` on the main view of the view controller. Once thats in the storyboard, wire it up to an `@IBAction` in the view controller. Below is the code to receive that tap from the gesture recognizer and then draw a red box around it using the Highlight view. Note that the size I picked is arbitrary. Pick any size you like. Also note that the rectangle we pass to the vision system is sensitive to the size and shape of the object to track. So if you could make the size of the red box, better match the object you want to track, the tracking will work better.
+In order to the receive the tap, we're going to use a  `UITapGestureRecognizer` on the main view of the view controller. Once thats in the storyboard, wire it up to an `@IBAction` in the view controller. Below is the code to receive that tap from the gesture recognizer and then draw a red box around it using the Highlight view.
+
+Note that the size I picked is arbitrary. Pick any size you like. Also note that the rectangle we pass to the vision system is sensitive to the size and shape of the object to track. So if you could make the size of the red box, better match the object you want to track, the tracking will work better.
 
 ``` swift
     @IBAction private func userTapped(_ sender: UITapGestureRecognizer) {
@@ -148,4 +153,137 @@ In order to the receive the tap, we're going to use a  `UITapGestureRecognizer` 
         self.highlightView?.center = sender.location(in: self.view)
     }
 ```
+
+Unfortunately, when dealing with the vision framework in this way, there are 3 different coordinate systems we have to convert between. The UIKit coordinate space has an origin in the top left corner. It has max height and width values of the screen size in points (320 x 560 on a 4in iPhone). The AVFoundation has a coordinate system with the origin in the top left but a max height and width of 1. Lastly, the Vision system has a coordinate system with the origin in the bottom left and a max height and width of 1. Luckily, the `AVCaptureVideoPreviewLayer` has helper methods that help us convert between UIKit coordinates and AVFoundation coordinates. Once we convert to AVFoundation coordinate, we just need to flip the y value convert to Vision coordinates.
+
+``` swift
+    @IBAction private func userTapped(_ sender: UITapGestureRecognizer) {
+        // get the center of the tap
+        // ..
+        
+        // convert the rect for the initial observation
+        let originalRect = self.highlightView?.frame ?? .zero
+        var convertedRect = self.cameraLayer.metadataOutputRectConverted(fromLayerRect: originalRect)
+        convertedRect.origin.y = 1 - convertedRect.origin.y
+    }
+```
+
+Once we have the correct CGRect to pass to the vision system, we can create our seed observation and store it in the property we created earlier.
+
+``` swift
+    @IBAction private func userTapped(_ sender: UITapGestureRecognizer) {
+        // ..
+        // convert the rect for the initial observation
+        // ..
+        
+        // set the observation
+        let newObservation = VNDetectedObjectObservation(boundingBox: convertedRect)
+        self.lastObservation = newObservation
+    }
+```
+
+Now if you run the app and tap the screen, you should see a red box appear around where you touched. Also, unknown to you, the vision system is running and it is performing object tracking. However, we never added the completion handler to our request. So the results of the object tracking are not doing anything.
+
+### Update the rectangle on the screen as the vision system returns new 'Observations.'
+
+We're going to add a new method to the view controller. We'll use this method as the completion handler for our object tracking request.
+
+``` swift
+    private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
+        // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
+        DispatchQueue.main.async {
+        }
+    }
+```
+
+Make sure to adjust the request object to take this method as a completion handler
+
+``` swift
+func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        // ..
+        // create the request
+        let request = VNTrackObjectRequest(detectedObjectObservation: lastObservation, completionHandler: self.handleVisionRequestUpdate)
+        //..
+    }
+```
+
+In the completion handler, there are 3 things we need to do. We need to check that the observation object is the correct kind of observation. We need to replace the `lastObservation` property with the new observation. That way its ready next time the camera has a new frame for us. Lastly, we need to update the UI to draw the Highlight view around the new observation. This way the user can see the tracking as it happens.
+
+Below, is the guard statement that allows us to check we have the correct observation type and store it in our property for next time.
+
+``` swift
+    private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
+        // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
+        DispatchQueue.main.async {
+            // make sure we have an actual result
+            guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { print(error!); return }
+            
+            // prepare for next loop
+            self.lastObservation = newObservation
+        }
+    }
+```
+
+Now we need to take the `boundingBox` of the observation and convert it from Vision space to UIKit space. To do this, we do the opposite of what we did in the tap gesture `@IBAction`. We take the original, flip the y coordinate to convert to AVFoundation coordinates. Then we use the `AVCaptureVideoPreviewLayer` to convert from AVFoundation coordinates to UIKit coordinates. Then we set the frame on the Highlight view.
+
+``` swift
+    private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
+        // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
+        DispatchQueue.main.async {
+            // ..
+            // prepare for next loop
+            // ..
+            
+            // calculate view rect
+            var transformedRect = newObservation.boundingBox
+            transformedRect.origin.y = 1 - transformedRect.origin.y
+            let convertedRect = self.cameraLayer.layerRectConverted(fromMetadataOutputRect: transformedRect)
+            
+            // move the highlight view
+            self.highlightView?.frame = convertedRect
+        }
+    }
+```
+
+Now when you run the app, you can tap on something and you should be able to slowly pan the phone and see the red Highlight view stay on that object. To add a tiny amount of polish, we can check the `confidence` property on the observation. This property tells us how confident the model is about whether its the correct object being tracked or not. Confidence is a value between 0 and 1. In my testing, 0.3 seemed to be about the cut off where things were getting bad. Here is the final completion handler:
+
+``` swift
+    private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
+        // Dispatch to the main queue because we are touching non-atomic, non-thread safe properties of the view controller
+        DispatchQueue.main.async {
+            // make sure we have an actual result
+            guard let newObservation = request.results?.first as? VNDetectedObjectObservation else { print(error!); return }
+            
+            // prepare for next loop
+            self.lastObservation = newObservation
+            
+            // check the confidence level before updating the UI
+            guard newObservation.confidence >= 0.3 else {
+                // hide the rectangle when we lose accuracy so the user knows something is wrong
+                self.highlightView?.frame = .zero
+                return
+            }
+            
+            // calculate view rect
+            var transformedRect = newObservation.boundingBox
+            transformedRect.origin.y = 1 - transformedRect.origin.y
+            let convertedRect = self.cameraLayer.layerRectConverted(fromMetadataOutputRect: transformedRect)
+            
+            // move the highlight view
+            self.highlightView?.frame = convertedRect
+        }
+    }
+```
+
+## Summary
+
+So thats it. Now you have a working object tracker working with a live video feed. Note that the techniques we used here work with almost all of the Vision framework request types. You use the AVCaptureSession delegate callbacks to feed new `CVPixelBuffer`s and new requests to the `VNSequenceRequestHandler`.
+
+Take a look at the sample project in this Github Repository. It also has a reset button that stops the vision processing.
+
+Also note that you can compose the requests. The request handler takes an Array of request objects. So you can make several of them that all do different things and pass them into the request handler. Two primary use cases come to mind for why you would want to do this.
+
+    1. Use the `VNDetectFaceRectanglesRequest` object to detect faces. Once you find a face, make a new `VNTrackObjectRequest` for each face so that you can keep track of which face is which as they move around the camera.
+    2. Use the `VNTrackObjectRequest` to track an object the user is interested in (like in this tutorial) then create a `VNCoreMLRequest` to use a machine learning model to attempt to identify what is in the boundingBox of the `VNDetectedObjectObservation`. Note that all 'VNRequest' objects and their subclasses have a `regionOfInterest` property. Set this to tell the handler which part of the `CVPixelBuffer` it should look at. This is how you can easy go from the `boundingBox` of an observation, to detecting what is inside that part of the image.
+
 

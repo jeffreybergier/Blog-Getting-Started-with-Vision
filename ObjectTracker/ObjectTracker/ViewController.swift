@@ -114,11 +114,12 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         self.highlightView?.center = sender.location(in: self.view)
         
         // convert the rect for the initial observation
-        var convertedRect = self.cameraLayer.metadataOutputRectConverted(fromLayerRect: self.highlightView?.frame ?? .zero)
+        let originalRect = self.highlightView?.frame ?? .zero
+        var convertedRect = self.cameraLayer.metadataOutputRectConverted(fromLayerRect: originalRect)
         convertedRect.origin.y = 1 - convertedRect.origin.y
-        let newObservation = VNDetectedObjectObservation(boundingBox: convertedRect)
         
         // set the observation
+        let newObservation = VNDetectedObjectObservation(boundingBox: convertedRect)
         self.lastObservation = newObservation
     }
     

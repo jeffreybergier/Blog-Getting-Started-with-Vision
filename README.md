@@ -1,4 +1,5 @@
 # Blog: Getting Started with Vision
+![Xcode 9 beta 1](https://img.shields.io/badge/Xcode-9%20beta%201-0080FF.svg) ![Swift 4](https://img.shields.io/badge/Swift-4-yellow.svg) ![iOS 11 beta 1](https://img.shields.io/badge/iOS-11%20beta%201-green.svg)
 
 ![Tracking Screenshot](demo_screenshot.png) [![Tracking Video](demo_video.gif)](demo_video.mp4)
 
@@ -39,6 +40,10 @@ This is not new code so I'm not going to go into detail. We're going to add some
 At this point, you should be able to launch the app and see camera output on the screen.
 
 ``` swift
+import AVFoundation
+import Vision
+import UIKit
+
 class ViewController: UIViewController {
 
     @IBOutlet private weak var cameraView: UIView?
@@ -188,7 +193,7 @@ Unfortunately, we can't pass this CGRect directly into the Vision system. There 
       - Origin in the bottom left
       - Max height and width of 1
       
-Luckily, the `AVCaptureVideoPreviewLayer` has helper methods that convert between UIKit coordinates and AVFoundation coordinates. Once we have AVFoundation values, we can invert the Y origin to convert to Vision coordinate.
+Luckily, the `AVCaptureVideoPreviewLayer` has helper methods that convert between UIKit coordinates and AVFoundation coordinates. Once we have AVFoundation values, we can invert the Y origin to convert to Vision coordinates.
 
 ``` swift
     @IBAction private func userTapped(_ sender: UITapGestureRecognizer) {
@@ -263,7 +268,7 @@ Below, is the guard statement that allows us to check we have the correct observ
     }
 ```
 
-Now we need to take the `boundingBox` of the observation and convert it from Vision space to UIKit space. To do this, we do the opposite of what we did in the tap gesture `@IBAction`. We take the original, flip the y coordinate to convert to AVFoundation coordinates. Then we use the `AVCaptureVideoPreviewLayer` to convert from AVFoundation coordinates to UIKit coordinates. Then we set the frame on the Highlight view.
+Now we need to take the `boundingBox` of the observation and convert it from Vision space to UIKit space. To do this, we do the opposite of what we did in the tap gesture `@IBAction`. We take the original, flip the Y coordinate to convert to AVFoundation coordinates. Then we use the `AVCaptureVideoPreviewLayer` to convert from AVFoundation coordinates to UIKit coordinates. Then we set the frame on the Highlight view.
 
 ``` swift
     private func handleVisionRequestUpdate(_ request: VNRequest, error: Error?) {
@@ -316,9 +321,9 @@ Now when you run the app, you can tap on something and you should be able to slo
 
 ## Summary
 
-Now you have a working object tracker working with a live video feed. Note that the techniques we used here work with almost all of the Vision framework request types. You use the AVCaptureSession delegate callbacks to feed new `CVPixelBuffer`s and new requests to the `VNSequenceRequestHandler`.
+Now you have an object tracker working with a live video feed. Note that the techniques we used here work with almost all the Vision framework request types. You use the AVCaptureSession delegate callbacks to feed new `CVPixelBuffer`s and new requests to the `VNSequenceRequestHandler`.
 
-Also note that you can compose the requests. The request handler takes an Array of request objects. So you can make several of them that all do different things and pass them into the request handler. Two primary use cases come to mind for why you would want to do this.
+Also note that the request handler can perform many requests simultaneously. The request handler takes an Array of request objects. So you can make several of them that all do different things and pass them into the request handler. Two primary use cases come to mind for why you would want to do this.
 
    1. Use the `VNDetectFaceRectanglesRequest` object to detect faces. Once you find a face, make a new `VNTrackObjectRequest` for each face so that you can keep track of which face is which as they move around the camera.
    2. Use the `VNTrackObjectRequest` to track an object the user is interested in (like in this tutorial) then create a `VNCoreMLRequest` to use a machine learning model to attempt to identify what is in the boundingBox of the `VNDetectedObjectObservation`. Note that all 'VNRequest' objects and their subclasses have a `regionOfInterest` property. Set this to tell the handler which part of the `CVPixelBuffer` it should look at. This is how you can easy go from the `boundingBox` of an observation, to detecting what is inside that part of the image.

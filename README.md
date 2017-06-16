@@ -1,4 +1,4 @@
-# Blog: Getting Started with Vision
+# Blog: Getting Started with Vision [![Find me on Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/jeffburg)
 ![Xcode 9 beta 1](https://img.shields.io/badge/Xcode-9%20beta%201-0080FF.svg) ![Swift 4](https://img.shields.io/badge/Swift-4-yellow.svg) ![iOS 11 beta 1](https://img.shields.io/badge/iOS-11%20beta%201-green.svg)
 
 ![Tracking Screenshot](demo_screenshot.png) [![Tracking Video](demo_video.gif)](demo_video.mp4)
@@ -317,7 +317,7 @@ Now when you run the app, you can tap on something and you should be able to slo
     }
 ```
 
-## Summary
+## Summary [![Find me on Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/jeffburg)
 
 Now you have an object tracker working with a live video feed. Note that the techniques we used here work with almost all the Vision framework request types. You use the AVCaptureSession delegate callbacks to feed new `CVPixelBuffer`s and new requests to the `VNSequenceRequestHandler`.
 
